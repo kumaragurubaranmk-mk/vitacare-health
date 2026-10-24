@@ -2,6 +2,7 @@
   "name": "healthgpt-app",
   "version": "1.0.0",
   "description": "HealthGPT – Personal Health Assistant Full Stack Application",
+  "type": "module",
   "scripts": {
     "start": "npm --prefix server start",
     "build": "npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build",
