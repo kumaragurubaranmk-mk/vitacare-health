@@ -2,6 +2,7 @@ import { db } from '../database/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertEscalationService } from '../services/alertEscalationService.js';
 import { CallService } from '../services/callService.js';
+import { getAuthorizedProfile } from '../middleware/profileAuth.js';
 
 export class MedicationsController {
   /**
@@ -9,11 +10,30 @@ export class MedicationsController {
    */
   static getReminders(req, res, next) {
     try {
-      const reminders = db.prepare(`
-        SELECT * FROM medication_reminders 
-        WHERE user_id = ? 
-        ORDER BY reminder_time ASC, created_at DESC
-      `).all(req.user.id);
+      const requestedProfileId = req.query.profile_id || req.headers['x-profile-id'] || null;
+      const authResult = getAuthorizedProfile(req.user.id, requestedProfileId);
+
+      if (!authResult.authorized) {
+        return res.status(authResult.status || 403).json({ error: authResult.reason });
+      }
+
+      const pId = authResult.profileId;
+      const isSelf = authResult.isSelf;
+
+      let reminders;
+      if (isSelf) {
+        reminders = db.prepare(`
+          SELECT * FROM medication_reminders 
+          WHERE user_id = ? AND (profile_id = ? OR profile_id IS NULL OR profile_id = 'self' OR profile_id = ?)
+          ORDER BY reminder_time ASC, created_at DESC
+        `).all(req.user.id, pId, `self-${req.user.id}`);
+      } else {
+        reminders = db.prepare(`
+          SELECT * FROM medication_reminders 
+          WHERE user_id = ? AND profile_id = ?
+          ORDER BY reminder_time ASC, created_at DESC
+        `).all(req.user.id, pId);
+      }
 
       const parsedReminders = reminders.map(r => ({
         ...r,
@@ -190,6 +210,13 @@ export class MedicationsController {
       const call_reminder_enabled = req.body.call_reminder_enabled !== undefined ? req.body.call_reminder_enabled : 1;
       const video_verification_enabled = req.body.video_verification_enabled !== undefined ? req.body.video_verification_enabled : 1;
 
+      const requestedProfileId = req.body.profile_id || req.query.profile_id || req.headers['x-profile-id'] || null;
+      const authResult = getAuthorizedProfile(req.user.id, requestedProfileId);
+      if (!authResult.authorized) {
+        return res.status(authResult.status || 403).json({ error: authResult.reason });
+      }
+      const effectiveProfileId = authResult.profileId;
+
       if (!medicine_name || !dosage) {
         return res.status(400).json({ error: 'Medicine name and dosage are required.' });
       }
@@ -209,13 +236,14 @@ export class MedicationsController {
 
       db.prepare(`
         INSERT INTO medication_reminders (
-          id, user_id, medicine_name, dosage, frequency, reminder_time, start_date, end_date, notes,
+          id, user_id, profile_id, medicine_name, dosage, frequency, reminder_time, start_date, end_date, notes,
           call_reminder_enabled, video_verification_enabled, call_status, status,
           intake_times, duration_days, instructions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', 'active', ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', 'active', ?, ?, ?)
       `).run(
         id,
         req.user.id,
+        effectiveProfileId,
         medicine_name.trim(),
         dosage.trim(),
         frequency,
@@ -234,26 +262,26 @@ export class MedicationsController {
       for (const t of validIntakeTimes) {
         db.prepare(`
           INSERT INTO medication_logs (
-            id, reminder_id, user_id, scheduled_date, scheduled_time, status, verification_mode, notes
-          ) VALUES (?, ?, ?, ?, ?, 'pending', 'pending_tracking', 'Scheduled medicine pending consumption verification')
-        `).run(uuidv4(), id, req.user.id, today, t);
+            id, reminder_id, user_id, profile_id, scheduled_date, scheduled_time, status, verification_mode, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending_tracking', 'Scheduled medicine pending consumption verification')
+        `).run(uuidv4(), id, req.user.id, effectiveProfileId, today, t);
       }
 
       // Log timeline
       db.prepare(`
         INSERT INTO medical_timeline (
-          id, user_id, event_type, title, description, event_date, event_time, reference_id,
+          id, user_id, profile_id, event_type, title, description, event_date, event_time, reference_id,
           icon_type, status_badge, metadata
-        ) VALUES (?, ?, 'medicine_scheduled', ?, ?, ?, ?, ?, 'pill', 'active', ?)
+        ) VALUES (?, ?, ?, 'medicine_scheduled', ?, ?, ?, ?, ?, 'pill', 'active', ?)
       `).run(
         uuidv4(),
         req.user.id,
+        effectiveProfileId,
         `Medicine Scheduled: ${medicine_name.trim()} (${dosage.trim()})`,
         `Schedule: ${frequency} at ${validIntakeTimes.join(', ')} • Duration: ${duration_days} days.`,
         start_date,
         validIntakeTimes[0] || '08:00 AM',
         id,
-        JSON.stringify({ intakeTimes: validIntakeTimes, durationDays: duration_days })
       );
 
       const reminder = db.prepare(`SELECT * FROM medication_reminders WHERE id = ?`).get(id);

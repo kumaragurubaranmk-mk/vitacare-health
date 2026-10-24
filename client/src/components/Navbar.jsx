@@ -21,6 +21,9 @@ import { LanguageSelector } from './LanguageSelector';
 import { EmergencySosModal } from './EmergencySosModal';
 import { AddPrescriptionModal } from './AddPrescriptionModal';
 import { AddHealthReportModal } from './AddHealthReportModal';
+import { FamilyProfileSwitcher } from './FamilyProfileSwitcher';
+import { FamilyManagerModal } from './FamilyManagerModal';
+import { AbhaSandboxModal } from './AbhaSandboxModal';
 
 export function Navbar() {
   const { user, isAuthenticated, logout, isDemoMode, toggleDemoMode } = useAuth();
@@ -29,6 +32,8 @@ export function Navbar() {
   const [isSosOpen, setIsSosOpen] = useState(false);
   const [isAddRxOpen, setIsAddRxOpen] = useState(false);
   const [isAddReportOpen, setIsAddReportOpen] = useState(false);
+  const [isFamilyOpen, setIsFamilyOpen] = useState(false);
+  const [isAbhaOpen, setIsAbhaOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -134,8 +139,78 @@ export function Navbar() {
             SOS
           </button>
 
+          {/* VitaCare Intelligence Bonus Dashboard Link */}
+          <Link
+            to="/intelligence"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+              color: '#ffffff',
+              fontSize: '0.785rem',
+              fontWeight: 700,
+              borderRadius: '0.5rem',
+              padding: '0.35rem 0.75rem',
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+              transition: 'transform 0.15s ease'
+            }}
+            title="VitaCare Intelligence — Live Bonus Demonstration Dashboard"
+          >
+            <Sparkles size={14} /> Intelligence
+          </Link>
+
           {/* Multilingual Selector */}
           <LanguageSelector compact />
+
+          {/* User Auth Controls */}
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              {/* Family Profile Switcher */}
+              <FamilyProfileSwitcher onOpenManager={() => setIsFamilyOpen(true)} />
+
+              <button
+                onClick={() => setIsAbhaOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#ecfdf5',
+                  border: '1.5px solid #059669',
+                  color: '#065f46',
+                  borderRadius: '9999px',
+                  padding: '0.35rem 0.65rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                title="Ayushman Bharat Digital Mission (ABDM) / ABHA Sandbox"
+              >
+                <Shield size={13} color="#059669" /> ABHA
+              </button>
+
+              <Link to="/ai-assistant" className="btn btn-ghost btn-sm" style={{ gap: '0.35rem', color: '#0284c7', fontWeight: 600 }}>
+                <Bot size={15} /> Copilot
+              </Link>
+              <Link to="/dashboard" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }}>
+                <User size={15} /> {user?.full_name?.split(' ')[0] || 'Dashboard'}
+              </Link>
+              <button
+                onClick={() => { logout(); navigate('/login'); }}
+                className="btn btn-ghost btn-sm"
+                title="Sign Out"
+                style={{ padding: '0.45rem' }}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <Link to="/login" className="btn btn-ghost btn-sm">Sign In</Link>
+              <Link to="/register" className="btn btn-primary btn-sm">Create Account</Link>
+            </div>
+          )}
 
           {/* Admin Link (Requirement 1) */}
           <Link
@@ -169,31 +244,6 @@ export function Navbar() {
           >
             {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
           </button>
-
-          {/* User Auth Controls */}
-          {isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <Link to="/ai-assistant" className="btn btn-ghost btn-sm" style={{ gap: '0.35rem', color: '#0284c7', fontWeight: 600 }}>
-                <Bot size={15} /> Copilot
-              </Link>
-              <Link to="/dashboard" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }}>
-                <User size={15} /> {user?.full_name?.split(' ')[0] || 'Dashboard'}
-              </Link>
-              <button
-                onClick={() => { logout(); navigate('/login'); }}
-                className="btn btn-ghost btn-sm"
-                title="Sign Out"
-                style={{ padding: '0.45rem' }}
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <Link to="/login" className="btn btn-ghost btn-sm">Sign In</Link>
-              <Link to="/register" className="btn btn-primary btn-sm">Create Account</Link>
-            </div>
-          )}
         </div>
       </header>
 
@@ -222,6 +272,18 @@ export function Navbar() {
           setIsAddReportOpen(false);
           window.dispatchEvent(new Event('vitacare:data-updated'));
         }}
+      />
+
+      {/* Family Health Profiles Manager Modal */}
+      <FamilyManagerModal
+        isOpen={isFamilyOpen}
+        onClose={() => setIsFamilyOpen(false)}
+      />
+
+      {/* ABDM / ABHA Sandbox Modal */}
+      <AbhaSandboxModal
+        isOpen={isAbhaOpen}
+        onClose={() => setIsAbhaOpen(false)}
       />
     </>
   );

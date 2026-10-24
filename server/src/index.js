@@ -28,6 +28,11 @@ import guardianRoutes from './routes/guardianRoutes.js';
 import sosRoutes from './routes/sosRoutes.js';
 import prescriptionRoutes from './routes/prescriptionRoutes.js';
 import timelineRoutes from './routes/timelineRoutes.js';
+import careconnectRoutes from './routes/careconnectRoutes.js';
+import familyRoutes from './routes/familyRoutes.js';
+import abdmRoutes from './routes/abdmRoutes.js';
+import agenticRoutes from './routes/agenticRoutes.js';
+import intelligenceRoutes from './routes/intelligenceRoutes.js';
 
 // Initialize Database on startup
 initDatabase();
@@ -100,6 +105,11 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/guardians', guardianRoutes);
 app.use('/api/sos', sosRoutes);
+app.use('/api/careconnect', careconnectRoutes);
+app.use('/api/family', familyRoutes);
+app.use('/api/abdm', abdmRoutes);
+app.use('/api/agentic', agenticRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
 // Serve production static frontend if built
 const clientDistPath = path.resolve(__dirname, '../../client/dist');

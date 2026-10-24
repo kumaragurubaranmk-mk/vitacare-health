@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { FamilyProvider } from './context/FamilyContext';
 
 // Components
 import { Navbar } from './components/Navbar';
@@ -39,6 +40,7 @@ import { EmergencyPage } from './pages/user/EmergencyPage';
 import { SettingsPage } from './pages/user/SettingsPage';
 import { UnifiedHealthHubPage } from './pages/user/UnifiedHealthHubPage';
 import { AlertHistoryPage } from './pages/user/AlertHistoryPage';
+import { VitaCareIntelligencePage } from './pages/user/VitaCareIntelligencePage';
 
 // Admin Pages
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
@@ -115,54 +117,58 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <AdminAuthProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
-                <Route path="/login" element={<PublicLayout><LoginPage /></PublicLayout>} />
-                <Route path="/register" element={<PublicLayout><RegisterPage /></PublicLayout>} />
-                <Route path="/verify-otp" element={<PublicLayout><OtpVerificationPage /></PublicLayout>} />
-                <Route path="/forgot-password" element={<PublicLayout><ForgotPasswordPage /></PublicLayout>} />
-                <Route path="/reset-password" element={<PublicLayout><ResetPasswordPage /></PublicLayout>} />
-                <Route path="/privacy" element={<PublicLayout><PrivacyPolicyPage /></PublicLayout>} />
-                <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
+          <FamilyProvider>
+            <AdminAuthProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
+                  <Route path="/login" element={<PublicLayout><LoginPage /></PublicLayout>} />
+                  <Route path="/register" element={<PublicLayout><RegisterPage /></PublicLayout>} />
+                  <Route path="/verify-otp" element={<PublicLayout><OtpVerificationPage /></PublicLayout>} />
+                  <Route path="/forgot-password" element={<PublicLayout><ForgotPasswordPage /></PublicLayout>} />
+                  <Route path="/reset-password" element={<PublicLayout><ResetPasswordPage /></PublicLayout>} />
+                  <Route path="/privacy" element={<PublicLayout><PrivacyPolicyPage /></PublicLayout>} />
+                  <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
 
-                {/* User Portal Routes */}
-                <Route path="/dashboard" element={<UserRoute><UserLayout><DashboardPage /></UserLayout></UserRoute>} />
-                <Route path="/health-tracker" element={<UserRoute><UserLayout><HealthTrackerPage /></UserLayout></UserRoute>} />
-                <Route path="/medications" element={<UserRoute><UserLayout><MedicationReminderPage /></UserLayout></UserRoute>} />
-                <Route path="/timeline" element={<UserRoute><UserLayout><MedicalTimelinePage /></UserLayout></UserRoute>} />
-                <Route path="/reports" element={<UserRoute><UserLayout><HealthRecordsPage /></UserLayout></UserRoute>} />
-                <Route path="/health-records" element={<UserRoute><UserLayout><HealthRecordsPage /></UserLayout></UserRoute>} />
-                <Route path="/ai-assistant" element={<UserRoute><UserLayout><AiAssistantPage /></UserLayout></UserRoute>} />
-                <Route path="/health-hub" element={<UserRoute><UserLayout><UnifiedHealthHubPage /></UserLayout></UserRoute>} />
-                <Route path="/symptom-checker" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/profile" element={<UserRoute><UserLayout><HealthProfilePage /></UserLayout></UserRoute>} />
-                <Route path="/appointments" element={<UserRoute><UserLayout><AppointmentsPage /></UserLayout></UserRoute>} />
-                <Route path="/education" element={<UserRoute><UserLayout><EducationPage /></UserLayout></UserRoute>} />
-                <Route path="/medical-dictionary" element={<UserRoute><UserLayout><MedicalDictionaryPage /></UserLayout></UserRoute>} />
-                <Route path="/emergency" element={<UserRoute><UserLayout><EmergencyPage /></UserLayout></UserRoute>} />
-                <Route path="/alert-history" element={<UserRoute><UserLayout><AlertHistoryPage /></UserLayout></UserRoute>} />
-                <Route path="/settings" element={<UserRoute><UserLayout><SettingsPage /></UserLayout></UserRoute>} />
+                  {/* User Portal Routes */}
+                  <Route path="/dashboard" element={<UserRoute><UserLayout><DashboardPage /></UserLayout></UserRoute>} />
+                  <Route path="/intelligence" element={<UserRoute><UserLayout><VitaCareIntelligencePage /></UserLayout></UserRoute>} />
+                  <Route path="/health-tracker" element={<UserRoute><UserLayout><HealthTrackerPage /></UserLayout></UserRoute>} />
+                  <Route path="/medications" element={<UserRoute><UserLayout><MedicationReminderPage /></UserLayout></UserRoute>} />
+                  <Route path="/timeline" element={<UserRoute><UserLayout><MedicalTimelinePage /></UserLayout></UserRoute>} />
+                  <Route path="/reports" element={<UserRoute><UserLayout><HealthRecordsPage /></UserLayout></UserRoute>} />
+                  <Route path="/health-records" element={<UserRoute><UserLayout><HealthRecordsPage /></UserLayout></UserRoute>} />
+                  <Route path="/ai-assistant" element={<UserRoute><UserLayout><AiAssistantPage /></UserLayout></UserRoute>} />
+                  <Route path="/ai-copilot" element={<UserRoute><UserLayout><AiAssistantPage /></UserLayout></UserRoute>} />
+                  <Route path="/health-hub" element={<UserRoute><UserLayout><UnifiedHealthHubPage /></UserLayout></UserRoute>} />
+                  <Route path="/symptom-checker" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/profile" element={<UserRoute><UserLayout><HealthProfilePage /></UserLayout></UserRoute>} />
+                  <Route path="/appointments" element={<UserRoute><UserLayout><AppointmentsPage /></UserLayout></UserRoute>} />
+                  <Route path="/education" element={<UserRoute><UserLayout><EducationPage /></UserLayout></UserRoute>} />
+                  <Route path="/medical-dictionary" element={<UserRoute><UserLayout><MedicalDictionaryPage /></UserLayout></UserRoute>} />
+                  <Route path="/emergency" element={<UserRoute><UserLayout><EmergencyPage /></UserLayout></UserRoute>} />
+                  <Route path="/alert-history" element={<UserRoute><UserLayout><AlertHistoryPage /></UserLayout></UserRoute>} />
+                  <Route path="/settings" element={<UserRoute><UserLayout><SettingsPage /></UserLayout></UserRoute>} />
 
-                {/* Admin Portal Routes */}
-                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="/admin/login" element={<AdminLoginPage />} />
-                <Route path="/admin/dashboard" element={<AdminRoute><AdminLayout><AdminDashboardPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/medicines" element={<AdminRoute><AdminLayout><AdminMedicinesPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/users" element={<AdminRoute><AdminLayout><AdminUsersPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/content" element={<AdminRoute><AdminLayout><AdminContentPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/medical-dictionary" element={<AdminRoute><AdminLayout><AdminDictionaryPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/feedback" element={<AdminRoute><AdminLayout><AdminFeedbackPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/audit-logs" element={<AdminRoute><AdminLayout><AdminAuditLogsPage /></AdminLayout></AdminRoute>} />
-                <Route path="/admin/settings" element={<AdminRoute><AdminLayout><AdminSettingsPage /></AdminLayout></AdminRoute>} />
+                  {/* Admin Portal Routes */}
+                  <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="/admin/login" element={<AdminLoginPage />} />
+                  <Route path="/admin/dashboard" element={<AdminRoute><AdminLayout><AdminDashboardPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/medicines" element={<AdminRoute><AdminLayout><AdminMedicinesPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/users" element={<AdminRoute><AdminLayout><AdminUsersPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/content" element={<AdminRoute><AdminLayout><AdminContentPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/medical-dictionary" element={<AdminRoute><AdminLayout><AdminDictionaryPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/feedback" element={<AdminRoute><AdminLayout><AdminFeedbackPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/audit-logs" element={<AdminRoute><AdminLayout><AdminAuditLogsPage /></AdminLayout></AdminRoute>} />
+                  <Route path="/admin/settings" element={<AdminRoute><AdminLayout><AdminSettingsPage /></AdminLayout></AdminRoute>} />
 
-                {/* Catch All Redirect */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </AdminAuthProvider>
+                  {/* Catch All Redirect */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </AdminAuthProvider>
+          </FamilyProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

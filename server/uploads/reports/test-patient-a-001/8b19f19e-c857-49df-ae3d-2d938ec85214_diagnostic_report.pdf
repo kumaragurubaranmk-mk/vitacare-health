@@ -1,0 +1,153 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 7 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 8 0 R >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+7 0 obj
+<< /Length 1561 >>
+stream
+BT
+/F1 18 Tf
+50 740 Td
+(Apollo Diagnostics) Tj
+/F2 10 Tf
+0 -16 Td
+(Accredited Clinical Pathology & Diagnostic Center " NABL/CAP Certified) Tj
+0 -12 Td
+(=================================================================================) Tj
+/F1 14 Tf
+0 -24 Td
+(Complete Blood Count Panel) Tj
+/F2 10 Tf
+0 -20 Td
+(Patient Name: Patient A) Tj
+250 0 Td
+(Patient ID: PT-TEST-P) Tj
+-250 -15 Td
+(Attending Physician: Dr. Michael Chen) Tj
+250 0 Td
+(Date of Report: 2026-10-15) Tj
+-250 -15 Td
+(Specimen Type: Whole Blood / Serum) Tj
+250 0 Td
+(Status: CLINICALLY VERIFIED) Tj
+-250 -20 Td
+(-------------------------------------------------------------------------------------------------------------------------------------------------) Tj
+/F1 11 Tf
+0 -18 Td
+(TEST PARAMETER) Tj
+160 0 Td
+(OBSERVED VALUE) Tj
+120 0 Td
+(REFERENCE RANGE) Tj
+120 0 Td
+(EVALUATION) Tj
+-400 -12 Td
+/F2 10 Tf
+(-------------------------------------------------------------------------------------------------------------------------------------------------) Tj
+
+0 -18 Td
+(Hemoglobin) Tj
+160 0 Td
+(11.2 g/dL) Tj
+120 0 Td
+(13.5 - 17.5) Tj
+120 0 Td
+(LOW) Tj
+-400 0 Td
+
+0 -30 Td
+/F1 11 Tf
+(CLINICAL NOTES & PRELIMINARY OBSERVATIONS:) Tj
+/F2 9 Tf
+0 -16 Td
+(All tested metabolic indices fall within normal physiological parameters. Continue prescribed wellness routine.) Tj
+0 -14 Td
+(Electronically signed by Laboratory Director. Original document preserved in VitaCare Secure Health Vault.) Tj
+0 -45 Td
+/F2 9 Tf
+(Page 1 of 2  --  VitaCare AI Verified Medical Record  --  Continued on Next Page >>) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Length 1847 >>
+stream
+BT
+/F1 16 Tf
+50 740 Td
+(Apollo Diagnostics - PAGE 2) Tj
+/F2 10 Tf
+0 -16 Td
+(Patient: Patient A  |  Report ID: PT-TEST-P  |  Date: 2026-10-15) Tj
+0 -12 Td
+(=================================================================================) Tj
+/F1 12 Tf
+0 -24 Td
+(EXTENDED CLINICAL SUMMARY & RECOMMENDATIONS:) Tj
+/F2 10 Tf
+0 -18 Td
+(1. Glycemic Control: Fasting plasma glucose and glycated hemoglobin reflect stable cellular insulin sensitivity.) Tj
+0 -16 Td
+(2. Renal & Hepatic Indices: Glomerular filtration markers remain unimpaired with normal BUN/Creatinine ratio.) Tj
+0 -16 Td
+(3. Preventive Guidance: Maintain current dietary protocol, adequate hydration, and adherence to scheduled medicines.) Tj
+0 -26 Td
+/F1 12 Tf
+(VITACARE AI PLAIN-LANGUAGE INTERPRETATION:) Tj
+/F2 9 Tf
+0 -18 Td
+(This diagnostic report confirms healthy metabolic functioning. Your blood sugar and kidney filtration levels are) Tj
+0 -14 Td
+(in good health. No acute abnormalities or critical alarms were detected on this evaluation panel.) Tj
+0 -30 Td
+(-------------------------------------------------------------------------------------------------------------------------------------------------) Tj
+0 -24 Td
+/F1 10 Tf
+(VERIFYING PHYSICIAN:                                                    CHIEF MEDICAL OFFICER:) Tj
+/F2 10 Tf
+0 -16 Td
+(Dr. Michael Chen                                    Dr. Robert Vance, MD, FACP) Tj
+0 -14 Td
+(License # MED-942819                                                    Board of Clinical Pathology) Tj
+0 -22 Td
+/F2 8 Tf
+(DISCLAIMER: This diagnostic summary is intended for verified patient health records. Consult your primary) Tj
+0 -11 Td
+(healthcare provider for individual therapeutic advice and clinical management.) Tj
+0 -35 Td
+/F2 9 Tf
+(Page 2 of 2  --  END OF DIAGNOSTIC REPORT  --  VitaCare Confidential Healthcare Record) Tj
+ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000393 00000 n 
+0000000468 00000 n 
+0000000538 00000 n 
+0000002149 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+4048
+%%EOF

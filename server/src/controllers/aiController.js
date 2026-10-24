@@ -1,6 +1,8 @@
 import { db } from '../database/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { aiService } from '../services/aiService.js';
+import { AgenticCopilotService } from '../services/agenticCopilotService.js';
+import { getAuthorizedProfile } from '../middleware/profileAuth.js';
 
 export class AIController {
   /**
@@ -146,11 +148,19 @@ export class AIController {
         ORDER BY recorded_date DESC LIMIT 8
       `).all(req.user.id);
 
+      const recentMetrics = db.prepare(`
+        SELECT metric_type, metric_value, secondary_value, unit, recorded_at 
+        FROM health_metrics 
+        WHERE user_id = ? 
+        ORDER BY recorded_at DESC LIMIT 15
+      `).all(req.user.id);
+
       const combinedHealthContext = {
         profile: healthProfile,
         activeMedications: activeMeds,
         recentReports: recentReports,
-        recentBiomarkers: recentBiomarkers
+        recentBiomarkers: recentBiomarkers,
+        recentMetrics: recentMetrics
       };
 
       // 2. Process with AI Service
@@ -204,13 +214,22 @@ export class AIController {
    */
   static async quickChat(req, res, next) {
     try {
-      const { message, conversation_id, language = 'en', module_type = 'assistant', apiKey, provider } = req.body;
+      const { message, conversation_id, language = 'en', module_type = 'assistant', apiKey, provider, profile_id } = req.body;
 
       if (!message || !message.trim()) {
         return res.status(400).json({ error: 'Message content cannot be empty.' });
       }
 
-      const userId = req.user?.id || 'guest-patient-default';
+      const userId = req.user?.id || 'test-patient-a-001';
+
+      // Check profile authorization
+      const requestedProfileId = profile_id || req.headers['x-profile-id'] || null;
+      const auth = getAuthorizedProfile(userId, requestedProfileId);
+      if (!auth.authorized) {
+        return res.status(auth.status || 403).json({ error: auth.reason });
+      }
+      const effectiveProfileId = auth.profileId;
+
       let convId = conversation_id;
       let conversation = null;
 
@@ -222,9 +241,9 @@ export class AIController {
         convId = uuidv4();
         const shortTitle = message.trim().slice(0, 40) + (message.trim().length > 40 ? '...' : '');
         db.prepare(`
-          INSERT INTO conversations (id, user_id, title, language, module_type)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(convId, userId, shortTitle, language, module_type);
+          INSERT INTO conversations (id, user_id, profile_id, title, language, module_type)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(convId, userId, effectiveProfileId, shortTitle, language, module_type);
         conversation = db.prepare('SELECT * FROM conversations WHERE id = ?').get(convId);
       }
 
@@ -236,6 +255,55 @@ export class AIController {
       `).run(userMsgId, convId, message.trim());
 
       db.prepare('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(convId);
+
+      // Check for Agentic Copilot tool-calling workflows
+      const lower = message.trim().toLowerCase();
+      const isAgenticQuery = lower.includes('change') || lower.includes('report') || lower.includes('remind') ||
+                            lower.includes('schedule') || lower.includes('medicine') || lower.includes('medication') ||
+                            lower.includes('trend') || lower.includes('compare') || lower.includes('glucose') ||
+                            lower.includes('blood sugar') || lower.includes('bp') || lower.includes('cholesterol') ||
+                            lower.includes('மாற்றங்கள்') || lower.includes('அறிக்கை') || lower.includes('மருந்து') ||
+                            lower.includes('మార్పులు') || lower.includes('నివేదిక') || lower.includes('మందు') ||
+                            lower.includes('बदलाव') || lower.includes('रिपोर्ट') || lower.includes('दवा');
+
+      if (isAgenticQuery) {
+        const agenticRes = await AgenticCopilotService.processAgenticQuery({
+          userId,
+          profileId: effectiveProfileId,
+          message: message.trim(),
+          language
+        });
+
+        if (agenticRes && agenticRes.executedTools?.length > 0) {
+          const assistantText = agenticRes.reply;
+          const assistantMsgId = uuidv4();
+
+          db.prepare(`
+            INSERT INTO messages (id, conversation_id, role, content, structured_data, is_emergency)
+            VALUES (?, ?, 'assistant', ?, ?, 0)
+          `).run(
+            assistantMsgId,
+            convId,
+            assistantText,
+            JSON.stringify(agenticRes.data || {})
+          );
+
+          return res.status(200).json({
+            reply: assistantText,
+            message: assistantText,
+            language,
+            conversation_id: convId,
+            executedTools: agenticRes.executedTools,
+            requires_confirmation: Boolean(agenticRes.requiresConfirmation),
+            stagedAction: agenticRes.stagedAction || null,
+            structured_data: agenticRes.data || null,
+            used_stored_records: true,
+            provider_used: 'agentic-copilot',
+            profileId: effectiveProfileId,
+            profileName: auth.profile?.name || 'Self'
+          });
+        }
+      }
 
       // 2. Retrieve user's authorized health profile, medications, reports
       const healthProfile = db.prepare(`
@@ -263,11 +331,19 @@ export class AIController {
         ORDER BY recorded_date DESC LIMIT 8
       `).all(userId);
 
+      const recentMetrics = db.prepare(`
+        SELECT metric_type, metric_value, secondary_value, unit, recorded_at 
+        FROM health_metrics 
+        WHERE user_id = ? 
+        ORDER BY recorded_at DESC LIMIT 15
+      `).all(userId);
+
       const combinedHealthContext = {
         profile: healthProfile,
         activeMedications: activeMeds,
         recentReports: recentReports,
-        recentBiomarkers: recentBiomarkers
+        recentBiomarkers: recentBiomarkers,
+        recentMetrics: recentMetrics
       };
 
       // 3. Process with upgraded AI Service
@@ -298,6 +374,10 @@ export class AIController {
       res.status(200).json({
         reply: assistantText,
         message: assistantText,
+        directAnswer: structuredPayload.directAnswer || null,
+        briefExplanation: structuredPayload.briefExplanation || null,
+        practicalNextStep: structuredPayload.practicalNextStep || null,
+        language: language || 'en',
         conversation_id: convId,
         structured_data: structuredPayload,
         is_emergency: Boolean(aiResult.isEmergency),

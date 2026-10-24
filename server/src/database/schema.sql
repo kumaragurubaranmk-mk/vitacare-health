@@ -410,6 +410,87 @@ CREATE TABLE IF NOT EXISTS call_logs (
   FOREIGN KEY (reminder_id) REFERENCES medication_reminders(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS family_members (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  member_user_id TEXT,
+  name TEXT NOT NULL,
+  relation TEXT NOT NULL, -- 'self' | 'child' | 'spouse' | 'parent' | 'dependent' | 'other'
+  profile_type TEXT NOT NULL, -- 'self' | 'child' | 'dependent'
+  gender TEXT DEFAULT 'other',
+  date_of_birth TEXT,
+  blood_group TEXT DEFAULT '',
+  allergies TEXT DEFAULT '',
+  existing_conditions TEXT DEFAULT '',
+  emergency_contact TEXT DEFAULT '',
+  emergency_phone TEXT DEFAULT '',
+  consent_status TEXT DEFAULT 'consented', -- 'consented' | 'pending' | 'revoked'
+  consent_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  avatar TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS agentic_tool_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  tool_name TEXT NOT NULL,
+  parameters TEXT NOT NULL,
+  result_summary TEXT NOT NULL,
+  requires_confirmation INTEGER DEFAULT 0,
+  confirmed_at DATETIME,
+  status TEXT DEFAULT 'executed', -- 'executed' | 'pending_confirmation' | 'confirmed' | 'rejected' | 'failed'
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS staged_actions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  action_type TEXT NOT NULL, -- 'create_reminder' | 'update_prescription' | 'alert_guardian'
+  payload TEXT NOT NULL,
+  confirmation_prompt TEXT NOT NULL,
+  status TEXT DEFAULT 'pending', -- 'pending' | 'confirmed' | 'cancelled' | 'executed'
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS abha_profiles (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  abha_number TEXT NOT NULL,
+  abha_address TEXT NOT NULL,
+  phr_address TEXT DEFAULT '',
+  status TEXT DEFAULT 'linked', -- 'linked' | 'unlinked' | 'pending_verification'
+  verification_method TEXT DEFAULT 'mock_otp',
+  is_mock INTEGER DEFAULT 1,
+  kyc_status TEXT DEFAULT 'verified',
+  linked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS abdm_consents (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  consent_id TEXT NOT NULL,
+  hip_name TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  status TEXT DEFAULT 'GRANTED', -- 'REQUESTED' | 'GRANTED' | 'REVOKED' | 'EXPIRED'
+  from_date TEXT,
+  to_date TEXT,
+  expiry_date TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_records_user ON health_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_user ON health_metrics(user_id);
 CREATE INDEX IF NOT EXISTS idx_medications_user ON medication_reminders(user_id);
@@ -431,4 +512,10 @@ CREATE INDEX IF NOT EXISTS idx_consumption_events_user ON consumption_events(use
 CREATE INDEX IF NOT EXISTS idx_consumption_events_med ON consumption_events(medicine_id);
 CREATE INDEX IF NOT EXISTS idx_call_logs_user ON call_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_call_logs_med ON call_logs(reminder_id);
+CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_agentic_tool_logs_user ON agentic_tool_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_staged_actions_user ON staged_actions(user_id);
+CREATE INDEX IF NOT EXISTS idx_abha_profiles_user ON abha_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_abdm_consents_user ON abdm_consents(user_id);
+
 

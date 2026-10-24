@@ -5,6 +5,7 @@ import { db } from '../database/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ReportParserService } from '../services/reportParserService.js';
 import { ClinicalPdfService } from '../services/clinicalPdfService.js';
+import { getAuthorizedProfile } from '../middleware/profileAuth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +84,13 @@ export class ReportController {
       const parent_report_id = req.body.parent_report_id || req.body.parentReportId || null;
       const verified_biomarkers = req.body.verified_biomarkers || req.body.verifiedBiomarkers || req.body.verifiedData?.biomarkers || [];
       const custom_biomarkers = req.body.custom_biomarkers || req.body.customBiomarkers || [];
+      const requestedProfileId = req.body.profile_id || req.query.profile_id || req.headers['x-profile-id'] || null;
+
+      const authResult = getAuthorizedProfile(req.user.id, requestedProfileId);
+      if (!authResult.authorized) {
+        return res.status(authResult.status || 403).json({ error: authResult.reason });
+      }
+      const effectiveProfileId = authResult.profileId;
 
       if (!title || !report_date) {
         return res.status(400).json({ error: 'Report title and report date are required.' });
@@ -200,13 +208,14 @@ export class ReportController {
       // 1. Insert medical report
       db.prepare(`
         INSERT INTO medical_reports (
-          id, user_id, title, report_type, report_date, doctor_name, facility_name,
+          id, user_id, profile_id, title, report_type, report_date, doctor_name, facility_name,
           file_name, file_type, file_data, file_path, raw_text, extracted_data, ai_summary,
           version, parent_report_id, verified_data, ocr_confidence
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.96)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.96)
       `).run(
         reportId,
         req.user.id,
+        effectiveProfileId,
         title.trim(),
         report_type,
         report_date,
@@ -227,21 +236,22 @@ export class ReportController {
       // 2. Save individual biomarkers for lifetime trending and historical charts
       const insertBiomarker = db.prepare(`
         INSERT INTO report_biomarkers (
-          id, user_id, report_id, biomarker_name, biomarker_category,
+          id, user_id, profile_id, report_id, biomarker_name, biomarker_category,
           value, unit, reference_range, status, recorded_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const insertMetric = db.prepare(`
         INSERT INTO health_metrics (
-          id, user_id, metric_type, metric_value, secondary_value, unit, recorded_at, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, user_id, profile_id, metric_type, metric_value, secondary_value, unit, recorded_at, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (const bio of finalBiomarkers) {
         insertBiomarker.run(
           uuidv4(),
           req.user.id,
+          effectiveProfileId,
           reportId,
           bio.name,
           bio.category || 'general',
@@ -255,15 +265,15 @@ export class ReportController {
         // Automatically populate health_metrics for core vitals so Health Tracker charts update!
         const bName = bio.name.toLowerCase();
         if (bName.includes('glucose') || bio.key === 'fasting glucose' || bio.key === 'glucose') {
-          insertMetric.run(uuidv4(), req.user.id, 'blood_glucose', bio.value, null, 'mg/dL', report_date, `Imported from ${title}`);
+          insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'blood_glucose', bio.value, null, 'mg/dL', report_date, `Imported from ${title}`);
         } else if (bName.includes('hemoglobin') || bio.key === 'hemoglobin') {
-          insertMetric.run(uuidv4(), req.user.id, 'hemoglobin', bio.value, null, 'g/dL', report_date, `Imported from ${title}`);
+          insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'hemoglobin', bio.value, null, 'g/dL', report_date, `Imported from ${title}`);
         } else if (bName.includes('cholesterol') || bio.key === 'total cholesterol') {
-          insertMetric.run(uuidv4(), req.user.id, 'cholesterol', bio.value, null, 'mg/dL', report_date, `Imported from ${title}`);
+          insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'cholesterol', bio.value, null, 'mg/dL', report_date, `Imported from ${title}`);
         } else if (bName.includes('heart rate') || bio.key === 'heart rate') {
-          insertMetric.run(uuidv4(), req.user.id, 'heart_rate', bio.value, null, 'bpm', report_date, `Imported from ${title}`);
+          insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'heart_rate', bio.value, null, 'bpm', report_date, `Imported from ${title}`);
         } else if (bName.includes('weight') || bio.key === 'weight') {
-          insertMetric.run(uuidv4(), req.user.id, 'weight', bio.value, null, 'kg', report_date, `Imported from ${title}`);
+          insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'weight', bio.value, null, 'kg', report_date, `Imported from ${title}`);
         }
       }
 
@@ -271,18 +281,19 @@ export class ReportController {
       const sysBio = finalBiomarkers.find(b => b.key === 'systolic' || b.name.toLowerCase().includes('systolic'));
       const diaBio = finalBiomarkers.find(b => b.key === 'diastolic' || b.name.toLowerCase().includes('diastolic'));
       if (sysBio && diaBio) {
-        insertMetric.run(uuidv4(), req.user.id, 'blood_pressure', sysBio.value, diaBio.value, 'mmHg', report_date, `Imported from ${title}`);
+        insertMetric.run(uuidv4(), req.user.id, effectiveProfileId, 'blood_pressure', sysBio.value, diaBio.value, 'mmHg', report_date, `Imported from ${title}`);
       }
 
       // 3. Automatically log into medical_timeline
       db.prepare(`
         INSERT INTO medical_timeline (
-          id, user_id, event_type, title, description, event_date, event_time, reference_id,
+          id, user_id, profile_id, event_type, title, description, event_date, event_time, reference_id,
           icon_type, status_badge, metadata
-        ) VALUES (?, ?, 'report_uploaded', ?, ?, ?, ?, ?, 'file', 'verified', ?)
+        ) VALUES (?, ?, ?, 'report_uploaded', ?, ?, ?, ?, ?, 'file', 'verified', ?)
       `).run(
         uuidv4(),
         req.user.id,
+        effectiveProfileId,
         `Medical Report Uploaded: ${title}`,
         `${doctor_name ? `Physician: ${doctor_name}. ` : ''}${finalBiomarkers.length} indicators verified. ${aiSummary}`,
         report_date,
@@ -329,126 +340,33 @@ export class ReportController {
   }
 
   /**
-   * Get all medical reports for user
+   * Get all medical reports for user / profile
    */
   static getReports(req, res, next) {
     try {
-      let reports = db.prepare(`
-        SELECT * FROM medical_reports 
-        WHERE user_id = ? 
-        ORDER BY report_date DESC, created_at DESC
-      `).all(req.user.id);
+      const requestedProfileId = req.query.profile_id || req.headers['x-profile-id'] || null;
+      const authResult = getAuthorizedProfile(req.user.id, requestedProfileId);
 
-      if (reports.length === 0) {
-        // Automatically seed an initial verified diagnostic laboratory report
-        const reportId = uuidv4();
-        const userObj = db.prepare('SELECT full_name FROM users WHERE id = ?').get(req.user.id);
-        const reportTitle = 'Comprehensive Metabolic & Diagnostic Panel';
-        const doctorName = 'Dr. Michael Chen, MD';
-        const facilityName = 'Metropolitan Diagnostics Laboratory';
-        const reportDate = new Date().toISOString().split('T')[0];
-        const rawText = `METROPOLITAN DIAGNOSTICS LABORATORY
-Patient: ${userObj?.full_name || 'Patient'}
-Doctor: ${doctorName}
-Date: ${reportDate}
+      if (!authResult.authorized) {
+        return res.status(authResult.status || 403).json({ error: authResult.reason });
+      }
 
-COMPREHENSIVE METABOLIC & HEMATOLOGY PANEL
-Fasting Blood Glucose: 94 mg/dL (Normal Range: 70 - 99 mg/dL)
-Hemoglobin (Hb): 14.4 g/dL (Normal Range: 13.5 - 17.5 g/dL)
-Total Cholesterol: 178 mg/dL (Normal Range: < 200 mg/dL)
-Blood Pressure Systolic: 120 mmHg (Normal Range: 90 - 120 mmHg)
-Blood Pressure Diastolic: 80 mmHg (Normal Range: 60 - 80 mmHg)
-Resting Heart Rate: 72 bpm (Normal Range: 60 - 100 bpm)
+      const pId = authResult.profileId;
+      const isSelf = authResult.isSelf;
 
-Clinical Interpretation: All tested metabolic markers and physiological parameters fall within normal adult reference thresholds. Routine maintenance recommended.`;
-
-        const initialBiomarkers = [
-          { name: 'Fasting Blood Glucose', key: 'glucose', value: 94, unit: 'mg/dL', referenceRange: '70 - 99 mg/dL', category: 'glycemic', status: 'normal' },
-          { name: 'Hemoglobin', key: 'hemoglobin', value: 14.4, unit: 'g/dL', referenceRange: '13.5 - 17.5 g/dL', category: 'hematology', status: 'normal' },
-          { name: 'Total Cholesterol', key: 'cholesterol', value: 178, unit: 'mg/dL', referenceRange: '< 200 mg/dL', category: 'lipid', status: 'normal' },
-          { name: 'Systolic Blood Pressure', key: 'systolic', value: 120, unit: 'mmHg', referenceRange: '90 - 120 mmHg', category: 'cardiovascular', status: 'normal' },
-          { name: 'Diastolic Blood Pressure', key: 'diastolic', value: 80, unit: 'mmHg', referenceRange: '60 - 80 mmHg', category: 'cardiovascular', status: 'normal' },
-          { name: 'Heart Rate', key: 'heart rate', value: 72, unit: 'bpm', referenceRange: '60 - 100 bpm', category: 'cardiovascular', status: 'normal' }
-        ];
-
-        const aiSummary = 'Diagnostic test completed. Glycemic control, hemoglobin levels, lipid indicators, and resting blood pressure demonstrate optimal physiological health. Continue balanced diet and regular physical activity.';
-
-        const userReportsDir = path.resolve(__dirname, '../../uploads/reports', req.user.id);
-        if (!fs.existsSync(userReportsDir)) {
-          fs.mkdirSync(userReportsDir, { recursive: true });
-        }
-
-        const safeBaseName = 'comprehensive_metabolic_panel.pdf';
-        const diskFilePath = path.join(userReportsDir, `${reportId}_${safeBaseName}`);
-        let pdfDataUrl = '';
-
-        try {
-          const pdfBuffer = ClinicalPdfService.generateReportPdf({
-            title: reportTitle,
-            patientName: userObj?.full_name || 'Patient',
-            patientId: `PT-${req.user.id.slice(0, 6).toUpperCase()}`,
-            doctorName,
-            facilityName,
-            reportDate,
-            biomarkers: initialBiomarkers,
-            rawText,
-            aiSummary
-          });
-          fs.writeFileSync(diskFilePath, pdfBuffer);
-          pdfDataUrl = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
-        } catch (e) {
-          console.warn('PDF generation notice:', e.message);
-        }
-
-        db.prepare(`
-          INSERT INTO medical_reports (
-            id, user_id, title, report_type, report_date, doctor_name, facility_name,
-            file_name, file_type, file_data, file_path, raw_text, extracted_data, ai_summary,
-            version, parent_report_id, verified_data, ocr_confidence
-          ) VALUES (?, ?, ?, 'lab_test', ?, ?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?, 1, NULL, ?, 0.98)
-        `).run(
-          reportId,
-          req.user.id,
-          reportTitle,
-          reportDate,
-          doctorName,
-          facilityName,
-          safeBaseName,
-          pdfDataUrl,
-          diskFilePath,
-          rawText,
-          JSON.stringify(initialBiomarkers),
-          aiSummary,
-          JSON.stringify(initialBiomarkers)
-        );
-
-        const insertBiomarker = db.prepare(`
-          INSERT INTO report_biomarkers (
-            id, user_id, report_id, biomarker_name, biomarker_category,
-            value, unit, reference_range, status, recorded_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const bio of initialBiomarkers) {
-          insertBiomarker.run(
-            uuidv4(),
-            req.user.id,
-            reportId,
-            bio.name,
-            bio.category || 'general',
-            bio.value,
-            bio.unit || '',
-            bio.referenceRange || '',
-            bio.status || 'normal',
-            reportDate
-          );
-        }
-
+      let reports;
+      if (isSelf) {
         reports = db.prepare(`
           SELECT * FROM medical_reports 
-          WHERE user_id = ? 
+          WHERE user_id = ? AND (profile_id = ? OR profile_id IS NULL OR profile_id = 'self' OR profile_id = ?)
           ORDER BY report_date DESC, created_at DESC
-        `).all(req.user.id);
+        `).all(req.user.id, pId, `self-${req.user.id}`);
+      } else {
+        reports = db.prepare(`
+          SELECT * FROM medical_reports 
+          WHERE user_id = ? AND profile_id = ?
+          ORDER BY report_date DESC, created_at DESC
+        `).all(req.user.id, pId);
       }
 
       const formatted = reports.map(r => ({
@@ -456,7 +374,7 @@ Clinical Interpretation: All tested metabolic markers and physiological paramete
         extracted_data: JSON.parse(r.extracted_data || '[]')
       }));
 
-      res.status(200).json({ reports: formatted });
+      res.status(200).json({ reports: formatted, profileId: pId });
     } catch (err) {
       next(err);
     }
@@ -611,6 +529,7 @@ Clinical Interpretation: All tested metabolic markers and physiological paramete
           id: `PT-${req.user.id.slice(0, 6).toUpperCase()}`
         },
         biomarkers: biomarkers.length > 0 ? biomarkers : extractedBiomarkers,
+        verifiedData: biomarkers.length > 0 ? biomarkers : extractedBiomarkers,
         prescriptions: extractedMedicines,
         rawOcrText: report.raw_text,
         extractedContent: {
@@ -671,19 +590,46 @@ Clinical Interpretation: All tested metabolic markers and physiological paramete
    */
   static getHealthTrends(req, res, next) {
     try {
-      const biomarkers = db.prepare(`
-        SELECT biomarker_name, value, unit, status, recorded_date, report_id
-        FROM report_biomarkers 
-        WHERE user_id = ? 
-        ORDER BY recorded_date ASC
-      `).all(req.user.id);
+      const requestedProfileId = req.query.profile_id || req.headers['x-profile-id'] || null;
+      const authResult = getAuthorizedProfile(req.user.id, requestedProfileId);
 
-      const metrics = db.prepare(`
-        SELECT metric_type, metric_value, secondary_value, unit, recorded_at 
-        FROM health_metrics 
-        WHERE user_id = ? 
-        ORDER BY recorded_at ASC
-      `).all(req.user.id);
+      if (!authResult.authorized) {
+        return res.status(authResult.status || 403).json({ error: authResult.reason });
+      }
+
+      const pId = authResult.profileId;
+      const isSelf = authResult.isSelf;
+
+      let biomarkers, metrics;
+      if (isSelf) {
+        biomarkers = db.prepare(`
+          SELECT biomarker_name, value, unit, status, recorded_date, report_id
+          FROM report_biomarkers 
+          WHERE user_id = ? AND (profile_id = ? OR profile_id IS NULL OR profile_id = 'self' OR profile_id = ?)
+          ORDER BY recorded_date ASC
+        `).all(req.user.id, pId, `self-${req.user.id}`);
+
+        metrics = db.prepare(`
+          SELECT metric_type, metric_value, secondary_value, unit, recorded_at 
+          FROM health_metrics 
+          WHERE user_id = ? AND (profile_id = ? OR profile_id IS NULL OR profile_id = 'self' OR profile_id = ?)
+          ORDER BY recorded_at ASC
+        `).all(req.user.id, pId, `self-${req.user.id}`);
+      } else {
+        biomarkers = db.prepare(`
+          SELECT biomarker_name, value, unit, status, recorded_date, report_id
+          FROM report_biomarkers 
+          WHERE user_id = ? AND profile_id = ?
+          ORDER BY recorded_date ASC
+        `).all(req.user.id, pId);
+
+        metrics = db.prepare(`
+          SELECT metric_type, metric_value, secondary_value, unit, recorded_at 
+          FROM health_metrics 
+          WHERE user_id = ? AND profile_id = ?
+          ORDER BY recorded_at ASC
+        `).all(req.user.id, pId);
+      }
 
       // Structure trends
       const trends = {

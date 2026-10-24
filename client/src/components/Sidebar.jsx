@@ -12,7 +12,9 @@ import {
   Settings,
   ShieldCheck,
   Bell,
-  Download
+  Download,
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -22,6 +24,7 @@ export function Sidebar() {
 
   const links = [
     { to: '/dashboard', label: navT.dashboard || 'Dashboard', icon: LayoutDashboard },
+    { to: '/intelligence', label: navT.intelligence || 'VitaCare Intelligence', icon: Sparkles },
     { to: '/health-tracker', label: navT.healthTracker || 'Health Tracker', icon: Activity },
     { to: '/medications', label: navT.medications || 'Medications', icon: Pill },
     { to: '/alert-history', label: navT.alertHistory || 'Alert History', icon: Bell },

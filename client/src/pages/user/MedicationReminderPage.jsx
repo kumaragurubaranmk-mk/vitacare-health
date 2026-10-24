@@ -102,28 +102,22 @@ export function MedicationReminderPage() {
         if (data.todaySlots && data.todaySlots.length > 0) {
           setTodayTimeline(data.todaySlots);
         } else {
-          // Default timeline reflecting requirements
-          setTodayTimeline([
-            { id: 1, time: '08:00 AM', medicine_name: 'Amoxicillin', dosage: '500 mg', status: 'taken' },
-            { id: 2, time: '01:00 PM', medicine_name: 'Multivitamin Complex', dosage: '1 tablet', status: 'taken' },
-            { id: 3, time: '08:00 PM', medicine_name: 'Amoxicillin', dosage: '500 mg', status: 'upcoming' },
-            { id: 4, time: '10:00 PM', medicine_name: 'Atorvastatin', dosage: '20 mg', status: 'upcoming' }
-          ]);
+          setTodayTimeline([]);
         }
 
         if (data.adherence) {
           setAdherence({
-            taken: data.adherence.taken ?? 18,
-            missed: data.adherence.missed ?? 2,
-            pending: data.adherence.pending ?? 1,
-            adherencePercentage: data.adherence.adherencePercentage ?? 90,
+            taken: data.adherence.taken ?? 0,
+            missed: data.adherence.missed ?? 0,
+            pending: data.adherence.pending ?? 0,
+            adherencePercentage: data.adherence.adherencePercentage ?? 100,
             calendar: data.adherence.calendar || [
-              { day: 'MON', status: 'taken', label: '🟢' },
-              { day: 'TUE', status: 'taken', label: '🟢' },
-              { day: 'WED', status: 'taken', label: '🟢' },
-              { day: 'THU', status: 'missed', label: '🔴' },
-              { day: 'FRI', status: 'taken', label: '🟢' },
-              { day: 'SAT', status: 'taken', label: '🟢' },
+              { day: 'MON', status: 'verified', label: '🟢' },
+              { day: 'TUE', status: 'verified', label: '🟢' },
+              { day: 'WED', status: 'verified', label: '🟢' },
+              { day: 'THU', status: 'verified', label: '🟢' },
+              { day: 'FRI', status: 'verified', label: '🟢' },
+              { day: 'SAT', status: 'verified', label: '🟢' },
               { day: 'SUN', status: 'pending', label: '🟠' }
             ]
           });
@@ -133,44 +127,6 @@ export function MedicationReminderPage() {
       console.error('Error fetching medications:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStatusChange = async (item, newStatus) => {
-    try {
-      const authToken = token || localStorage.getItem('healthgpt_token');
-      const today = new Date().toISOString().split('T')[0];
-
-      if (newStatus === 'taken' || newStatus === 'verified') {
-        const res = await fetch(`/api/medications/${item.reminderId || item.id}/verify`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
-          },
-          body: JSON.stringify({
-            reminder_id: item.reminderId || item.id,
-            scheduled_time: item.time || '08:00 AM',
-            notes: 'Verified via Medication page'
-          })
-        });
-
-        // Optimistic state
-        setTodayTimeline(prev =>
-          prev.map(slot => (slot.id === item.id ? { ...slot, status: 'verified', status_badge: '✅ Verified' } : slot))
-        );
-
-        setAdherence(prev => ({
-          ...prev,
-          taken: prev.taken + 1,
-          pending: Math.max(0, prev.pending - 1),
-          adherencePercentage: Math.min(100, Math.round(((prev.taken + 1) / (prev.taken + prev.missed + 1)) * 100))
-        }));
-
-        window.dispatchEvent(new Event('vitacare:data-updated'));
-      }
-    } catch (err) {
-      console.error('Error logging medication status:', err);
     }
   };
 
@@ -436,7 +392,33 @@ export function MedicationReminderPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
-            {todayTimeline.map((item, index) => {
+            {todayTimeline.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#f8fafc', borderRadius: '0.75rem', border: '1.5px dashed #cbd5e1' }}>
+                <Pill size={36} color="#94a3b8" style={{ margin: '0 auto 0.5rem' }} />
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>
+                  {t.dashboard?.noMedicinesToday || 'No medicines scheduled for today.'}
+                </div>
+                <p style={{ margin: '0.25rem 0 1rem', fontSize: '0.82rem', color: '#64748b' }}>
+                  {t.dashboard?.addMedCTA || 'Click [+ ADD MEDICINE] above to schedule your prescribed medicines.'}
+                </p>
+                <button
+                  onClick={() => setIsAddMedOpen(true)}
+                  style={{
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '0.55rem',
+                    padding: '0.55rem 1.15rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + ADD MEDICINE
+                </button>
+              </div>
+            ) : (
+              todayTimeline.map((item, index) => {
               const isTaken = item.status === 'taken';
               const isMissed = item.status === 'missed';
               const isSkipped = item.status === 'skipped';
@@ -583,7 +565,7 @@ export function MedicationReminderPage() {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
 
@@ -607,16 +589,38 @@ export function MedicationReminderPage() {
               </p>
             </div>
             <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
-              {reminders.length || 3} Active
+              {reminders.length} Active
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {(reminders.length > 0 ? reminders : [
-              { id: 101, medicine_name: 'Amoxicillin', dosage: '500 mg', frequency: 'Twice daily', intake_times: '08:00 AM, 08:00 PM', duration_days: 5, instructions: 'Complete full 5-day course. Take with food.' },
-              { id: 102, medicine_name: 'Metformin HCl', dosage: '500 mg', frequency: 'Twice daily', intake_times: '08:00 AM, 08:00 PM', duration_days: 30, instructions: 'Take with morning and evening meals.' },
-              { id: 103, medicine_name: 'Atorvastatin', dosage: '20 mg', frequency: 'Once daily (Night)', intake_times: '10:00 PM', duration_days: 30, instructions: 'Take at bedtime.' }
-            ]).map((med) => (
+            {reminders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#f8fafc', borderRadius: '0.75rem', border: '1.5px dashed #cbd5e1' }}>
+                <Pill size={36} color="#94a3b8" style={{ margin: '0 auto 0.5rem' }} />
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>
+                  No active medications registered.
+                </div>
+                <p style={{ margin: '0.25rem 0 1rem', fontSize: '0.82rem', color: '#64748b' }}>
+                  Click [+ ADD MEDICINE] above to register your prescribed medications.
+                </p>
+                <button
+                  onClick={() => setIsAddMedOpen(true)}
+                  style={{
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '0.55rem',
+                    padding: '0.55rem 1.15rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + ADD MEDICINE
+                </button>
+              </div>
+            ) : (
+              reminders.map((med) => (
               <div
                 key={med.id}
                 style={{
@@ -675,7 +679,7 @@ export function MedicationReminderPage() {
                   <Video size={13} /> CareConnect
                 </button>
               </div>
-            ))}
+            )))}
           </div>
         </div>
       </div>

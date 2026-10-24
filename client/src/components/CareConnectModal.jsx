@@ -12,6 +12,7 @@ import {
   UserCheck,
   RotateCcw,
   Camera,
+  CameraOff,
   Info,
   Sparkles,
   Activity,
@@ -39,6 +40,8 @@ export function CareConnectModal({ isOpen, onClose, reminder, onAdherenceConfirm
   const timerRef = useRef(null);
   const animFrameRef = useRef(null);
   const ingestionStartRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
   const medicineName = reminder?.medicine_name || reminder?.medicineName || 'Prescription Medicine';
   const dosage = reminder?.dosage || '1 dose';
@@ -100,6 +103,58 @@ export function CareConnectModal({ isOpen, onClose, reminder, onAdherenceConfirm
       }
 
       setCameraActive(true);
+
+      // Register session with backend WebRTC signaling
+      try {
+        const token = localStorage.getItem('healthgpt_token');
+        const callRes = await fetch('/api/careconnect/call', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            callType: 'video',
+            targetRole: 'doctor',
+            recipientName: caregiverName,
+            reminderId: reminderId || null
+          })
+        });
+
+        if (callRes.ok) {
+          const callData = await callRes.json();
+          sessionIdRef.current = callData.sessionId;
+
+          // Initialize WebRTC PeerConnection with STUN server
+          if (typeof window !== 'undefined' && window.RTCPeerConnection) {
+            const pc = new RTCPeerConnection(callData.rtcConfig || {
+              iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            peerConnectionRef.current = pc;
+
+            // Add local stream tracks to WebRTC
+            stream.getTracks().forEach((track) => {
+              pc.addTrack(track, stream);
+            });
+
+            pc.onicecandidate = (e) => {
+              if (e.candidate && sessionIdRef.current) {
+                fetch(`/api/careconnect/signal/${sessionIdRef.current}`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                  },
+                  body: JSON.stringify({ type: 'candidate', payload: e.candidate })
+                }).catch(() => {});
+              }
+            };
+          }
+        }
+      } catch (signalingErr) {
+        console.warn('CareConnect signaling backend note:', signalingErr);
+      }
+
       setCallState('connected');
 
       timerRef.current = setInterval(() => {
@@ -280,6 +335,10 @@ export function CareConnectModal({ isOpen, onClose, reminder, onAdherenceConfirm
       });
       streamRef.current = null;
     }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -290,6 +349,21 @@ export function CareConnectModal({ isOpen, onClose, reminder, onAdherenceConfirm
   };
 
   const handleEndCall = () => {
+    if (sessionIdRef.current) {
+      const token = localStorage.getItem('healthgpt_token');
+      fetch(`/api/careconnect/end/${sessionIdRef.current}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          durationSeconds: sessionSeconds,
+          finalStatus: 'completed'
+        })
+      }).catch(() => {});
+      sessionIdRef.current = null;
+    }
     cleanupCall();
     onClose();
   };

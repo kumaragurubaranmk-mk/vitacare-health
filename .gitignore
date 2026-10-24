@@ -26,6 +26,9 @@ Thumbs.db
 .idea/
 *.log
 
-# SQLite Shared Memory & WAL
+# SQLite Shared Memory, WAL & Database
+*.db
 *.db-shm
 *.db-wal
+server/server/
+
